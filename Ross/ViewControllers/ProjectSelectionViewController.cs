@@ -22,7 +22,8 @@ namespace Toggl.Ross.ViewControllers
         private readonly static NSString ProjectCellId = new NSString("ProjectCellId");
         private readonly static NSString TaskCellId = new NSString("TaskCellId");
 
-        private const float CellSpacing = 4f;
+        private const float CellSpacing = 1f;
+        private const float RowHeight = 68f;
         private Guid workspaceId;
         private ProjectListVM viewModel;
         private readonly IOnProjectSelectedHandler handler;
@@ -41,7 +42,7 @@ namespace Toggl.Ross.ViewControllers
             View.Apply(Style.Screen);
             EdgesForExtendedLayout = UIRectEdge.None;
 
-            TableView.RowHeight = 60f;
+            TableView.RowHeight = RowHeight;
             TableView.RegisterClassForHeaderFooterViewReuse(typeof(SectionHeaderView), ClientHeaderId);
             TableView.RegisterClassForCellReuse(typeof(ProjectCell), ProjectCellId);
             TableView.RegisterClassForCellReuse(typeof(TaskCell), TaskCellId);
@@ -83,20 +84,20 @@ namespace Toggl.Ross.ViewControllers
                 return;
             }
 
-            const int labelXMargin = 20;
-            const int labelYMargin = 5;
-            const int labelFrameHeight = 85;
+            const float labelYMargin = 1f;
+            const int textHeight = 20;
+            const int leftPadding = 13;
 
-            const int labelHeight = labelFrameHeight - labelYMargin;
-            var labelWidth = View.Frame.Width - labelXMargin * 2;
+            const float labelHeight = RowHeight - labelYMargin;
+            var labelWidth = View.Frame.Width;
 
-            var headerRect = new CGRect(0, 0, labelWidth, labelFrameHeight * (numberOfProjects + 1));
+            var headerRect = new CGRect(0, 0, labelWidth, RowHeight * (numberOfProjects + 1));
             var headerView = new UIView(headerRect);
 
-            const int headerLabelHeight = 50;
-
-            var headerLabelRect = new CGRect(labelXMargin, labelYMargin, labelWidth, headerLabelHeight);
-            var headerLabel = new UILabel(headerLabelRect) { Text = TopProjectsKey.Tr() };
+            var headerLabelRect = new CGRect(leftPadding, labelYMargin, labelWidth, labelHeight);
+            var headerLabel = new UILabel(headerLabelRect).Apply(Style.Log.HeaderDateLabel);
+            headerLabel.Text = TopProjectsKey.Tr();
+            headerLabel.Font = Font.Main(14);
 
             headerView.AddSubview(headerLabel);
 
@@ -104,23 +105,29 @@ namespace Toggl.Ross.ViewControllers
             {
                 var project = topProjects[i];
 
-                var buttonRect = new CGRect(labelXMargin, labelFrameHeight * i + headerLabelHeight + labelYMargin, labelWidth, labelHeight);
+                var buttonRect = new CGRect(0, RowHeight * i + labelHeight + labelYMargin, labelWidth, labelHeight);
                 var button = new UIButton(buttonRect);
 
                 button.BackgroundColor = UIColor.Clear.FromHex(ProjectData.HexColors[project.Color % ProjectData.HexColors.Length]);
                 button.TouchUpInside += (s, e) => OnItemSelected(project);
-                button.TitleEdgeInsets = new UIEdgeInsets(10, labelXMargin, 0, labelXMargin);
 
-                var projectLabelText = project.Task != null ? $"{project.Name} - {project.Task.Name}" : project.Name;
-                var projectLabel = new UILabel(new CGRect(labelXMargin, 15, labelWidth, 20));
+                var hasTask = project.Task != null;
+
+                var projectLabelTopPadding = labelHeight / 2 - (hasTask ? textHeight : textHeight / 2);
+
+                var projectLabelText = string.IsNullOrEmpty(project.ClientName) ? project.Name : $"{project.Name} · {project.ClientName}";
+                var projectLabel = new UILabel(new CGRect(leftPadding, projectLabelTopPadding, labelWidth, textHeight));
                 projectLabel.Text = projectLabelText;
                 projectLabel.TextColor = UIColor.White;
                 button.AddSubview(projectLabel);
 
-                var clientLabel = new UILabel(new CGRect(labelXMargin, 45, labelWidth, 20));
-                clientLabel.Text = string.IsNullOrEmpty(project.ClientName) ? "ProjectNoClient".Tr() : project.ClientName;
-                clientLabel.TextColor = UIColor.White;
-                button.AddSubview(clientLabel);
+                if (hasTask)
+                { 
+                    var taskLabel = new UILabel(new CGRect(leftPadding, labelHeight / 2, labelWidth, textHeight));
+                    taskLabel.Text = project.Task.Name;
+                    taskLabel.TextColor = UIColor.White;
+                    button.AddSubview(taskLabel);
+				}
 
                 headerView.AddSubview(button);
             }
@@ -233,24 +240,16 @@ namespace Toggl.Ross.ViewControllers
             }
 
             public override nfloat EstimatedHeight(UITableView tableView, NSIndexPath indexPath)
-            {
-                return 60f;
-            }
+                => RowHeight;
 
             public override nfloat EstimatedHeightForHeader(UITableView tableView, nint section)
-            {
-                return 42f;
-            }
+                => RowHeight;
 
             public override bool CanEditRow(UITableView tableView, NSIndexPath indexPath)
-            {
-                return false;
-            }
+                => false;
 
             public override nfloat GetHeightForRow(UITableView tableView, NSIndexPath indexPath)
-            {
-                return 60f;
-            }
+                => RowHeight;
 
             public override void RowSelected(UITableView tableView, NSIndexPath indexPath)
             {
@@ -465,6 +464,7 @@ namespace Toggl.Ross.ViewControllers
             public SectionHeaderView(IntPtr ptr) : base(ptr)
             {
                 nameLabel = new UILabel().Apply(Style.Log.HeaderDateLabel);
+                nameLabel.Font = Font.Main(14);
                 ContentView.AddSubview(nameLabel);
                 BackgroundView = new UIView().Apply(Style.Log.HeaderBackgroundView);
             }
